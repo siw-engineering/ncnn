@@ -41,6 +41,9 @@ public:
 public:
     void record_upload(const Mat& src, VkMat& dst, const Option& opt);
 
+    // interop
+    void record_upload(const int shareableHandle, VkMat& dst, const Option& opt);
+
     void record_upload(const Mat& src, VkImageMat& dst, const Option& opt);
 
     void record_download(const VkMat& src, Mat& dst, const Option& opt);
@@ -119,6 +122,9 @@ public:
     void record_upload(const Mat& src, VkMat& dst, const Option& opt, bool flatten = true);
 
     void record_upload(const Mat& src, VkImageMat& dst, const Option& opt);
+
+    // interop
+    void record_upload(const int shareableHandle, VkMat& dst, const Option& opt);
 
     int submit_and_wait();
 

@@ -567,6 +567,42 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAl
     }
 }
 
+// interop
+void VkMat::create(int _w, int _h, int _c, VkAllocator* _allocator, void *shareableHandle)
+{
+    // if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
+    //     return;
+    if (dims == 3 && w == _w && h == _h && c == _c && allocator == _allocator)
+        return;
+    release();
+    // std::cout << " create shareableHandle " << std::endl;
+    elemsize = 4;
+    elempack = 1;
+    allocator = _allocator;
+
+    dims = 3;
+    w = _w;
+    h = _h;
+    c = _c;
+    // size_t totalsize = 550*550*3*4;
+    // std::cout << " w : " << w << "  , h : " << h << " , c : " << c << std::endl;
+
+    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    // std::cout << " total : " << total() << std::endl;
+    if (total() > 0)
+    {
+        size_t totalsize = alignSize(total() * elemsize, 4);
+        // std::cout << " total size : " << totalsize << std::endl;
+        data = allocator->fastMallocShare(totalsize, shareableHandle);
+
+        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
+        *refcount = 1;
+        // std::cout << " refcount : " << *refcount << std::endl;
+    }
+}
+
+
+
 void VkMat::create_like(const Mat& m, VkAllocator* _allocator)
 {
     int _dims = m.dims;
@@ -576,6 +612,19 @@ void VkMat::create_like(const Mat& m, VkAllocator* _allocator)
         create(m.w, m.h, m.elemsize, m.elempack, _allocator);
     if (_dims == 3)
         create(m.w, m.h, m.c, m.elemsize, m.elempack, _allocator);
+}
+
+// interop
+void VkMat::create_like(VkAllocator* _allocator, void *shareableHandle)
+{
+    // std::cout << " interop create_like " << std::endl;
+    // int _dims = m.dims;
+    // if (_dims == 1)
+    //     create(m.w, m.elemsize, m.elempack, _allocator);
+    // if (_dims == 2)
+    //     create(m.w, m.h, m.elemsize, m.elempack, _allocator);
+    // if (_dims == 3)
+        create(550, 550, 3, _allocator, shareableHandle);
 }
 
 void VkMat::create_like(const VkMat& m, VkAllocator* _allocator)

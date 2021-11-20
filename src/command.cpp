@@ -412,6 +412,67 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     vkdev->convert_packing(dst_staging, dst, dst_elempack, *this, opt);
 }
 
+// interop
+void VkCompute::record_upload(const int shareableHandle, VkMat& dst, const Option& opt)
+{
+    //     NCNN_LOGE("record_upload buffer");
+
+    // Mat src_fp16;
+    // if (src.elemsize == src.elempack * 4u)
+    // {
+    //     // cpu cast to fp16 (discrete gpu)
+    //     if (vkdev->info.type() == 0 && (opt.use_fp16_storage || (opt.use_fp16_packed && src.elempack % 4 == 0)))
+    //     {
+    //         ncnn::cast_float32_to_float16(src, src_fp16, opt);
+    //     }
+    //     else
+    //     {
+    //         src_fp16 = src;
+    //     }
+    // }
+    // else
+    // {
+    //     src_fp16 = src;
+    // }
+
+    // upload
+    VkMat dst_staging;
+    dst_staging.create_like(opt.staging_vkallocator, (void *)(uintptr_t)shareableHandle);
+    // if (dst_staging.empty())
+    // {
+    //     // return;
+    // }
+
+    // stash staging
+    d->upload_staging_buffers.push_back(dst_staging);
+
+
+    //     NCNN_LOGE("upload_staging_buffer %p  ->   %p +%d ~%d", src_fp16.data, dst_staging.buffer(), dst_staging.buffer_offset(), dst_staging.buffer_capacity());
+
+    // memcpy src to device
+    // memcpy(dst_staging.mapped_ptr(), src_fp16.data, src_fp16.total() * src_fp16.elemsize);
+    dst_staging.allocator->flush(dst_staging.data);
+    // mark device host-write @ null
+    dst_staging.data->access_flags = VK_ACCESS_HOST_WRITE_BIT;
+    dst_staging.data->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
+
+    // resolve dst_elempack
+    // int dims = src_fp16.dims;
+    int elemcount = 3;
+    // if (dims == 1) elemcount = src_fp16.elempack * src_fp16.w;
+    // if (dims == 2) elemcount = src_fp16.elempack * src_fp16.h;
+    // if (dims == 3) elemcount = src_fp16.elempack * src_fp16.c;
+
+    int dst_elempack = 1;
+    if (opt.use_shader_pack8)
+        dst_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4 : 1;
+    else
+        dst_elempack = elemcount % 4 == 0 ? 4 : 1;
+
+    // gpu cast to fp16 on the fly (integrated gpu)
+    vkdev->convert_packing(dst_staging, dst, dst_elempack, *this, opt);
+}
+
 void VkCompute::record_upload(const Mat& src, VkImageMat& dst, const Option& opt)
 {
     //     NCNN_LOGE("record_upload image");

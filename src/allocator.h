@@ -275,6 +275,7 @@ public:
     virtual void clear();
 
     virtual VkBufferMemory* fastMalloc(size_t size) = 0;
+    virtual VkBufferMemory* fastMallocShare(size_t size, void *shareableHandle){};
     virtual void fastFree(VkBufferMemory* ptr) = 0;
     virtual int flush(VkBufferMemory* ptr);
     virtual int invalidate(VkBufferMemory* ptr);
@@ -292,7 +293,9 @@ public:
 
 protected:
     VkBuffer create_buffer(size_t size, VkBufferUsageFlags usage);
+    VkBuffer create_buffer_ext(size_t size, VkBufferUsageFlags usage);
     VkDeviceMemory allocate_memory(size_t size, uint32_t memory_type_index);
+    VkDeviceMemory allocate_memory_ext(size_t size, void *handle, uint32_t memory_type_index);
     VkDeviceMemory allocate_dedicated_memory(size_t size, uint32_t memory_type_index, VkImage image, VkBuffer buffer);
 
     VkImage create_image(int width, int height, int depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage);
@@ -364,6 +367,7 @@ public:
     virtual void clear();
 
     virtual VkBufferMemory* fastMalloc(size_t size);
+    virtual VkBufferMemory* fastMallocShare(size_t size, void *shareableHandle);
     virtual void fastFree(VkBufferMemory* ptr);
     virtual VkImageMemory* fastMalloc(int w, int h, int c, size_t elemsize, int elempack);
     virtual void fastFree(VkImageMemory* ptr);
@@ -385,6 +389,7 @@ public:
 
 public:
     virtual VkBufferMemory* fastMalloc(size_t size);
+    virtual VkBufferMemory* fastMallocShare(size_t size, void *shareableHandle);
     virtual void fastFree(VkBufferMemory* ptr);
     virtual VkImageMemory* fastMalloc(int w, int h, int c, size_t elemsize, int elempack);
     virtual void fastFree(VkImageMemory* ptr);

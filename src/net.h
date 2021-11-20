@@ -205,23 +205,30 @@ public:
     // set input by blob name
     // return 0 if success
     int input(const char* blob_name, const Mat& in);
+    // interop
+    int input(const char* blob_name, const int index);    
 
     // get result by blob name
     // return 0 if success
     // type = 0, default
     // type = 1, do not convert fp16/bf16 or / and packing
     int extract(const char* blob_name, Mat& feat, int type = 0);
+    // interop
+    int extract_share(const char* blob_name, Mat& feat, bool interop, int type = 0);
 #endif // NCNN_STRING
 
     // set input by blob index
     // return 0 if success
     int input(int blob_index, const Mat& in);
-
+    // interop
+    int input(int blob_index, const int index);
     // get result by blob index
     // return 0 if success
     // type = 0, default
     // type = 1, do not convert fp16/bf16 or / and packing
     int extract(int blob_index, Mat& feat, int type = 0);
+    // interop
+    int extract_share(int blob_index, Mat& feat, bool interop, int type = 0);
 
 #if NCNN_VULKAN
 #if NCNN_STRING
@@ -232,6 +239,10 @@ public:
     // get result by blob name
     // return 0 if success
     int extract(const char* blob_name, VkMat& feat, VkCompute& cmd);
+
+    // interop
+    int extract_share(const char* blob_name, VkMat& feat, VkCompute& cmd, bool interop);
+
 
     // set input by blob name
     // return 0 if success
@@ -249,6 +260,9 @@ public:
     // get result by blob index
     // return 0 if success
     int extract(int blob_index, VkMat& feat, VkCompute& cmd);
+
+    // interop
+    int extract_share(int blob_index, VkMat& feat, VkCompute& cmd, bool interop);
 
     // set input by blob index
     // return 0 if success

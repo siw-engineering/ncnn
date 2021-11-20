@@ -366,8 +366,12 @@ public:
     void create(int w, int h, size_t elemsize, int elempack, VkAllocator* allocator);
     // allocate packed dim
     void create(int w, int h, int c, size_t elemsize, int elempack, VkAllocator* allocator);
+    // interop
+    void create(int w, int h, int c, VkAllocator* _allocator, void *shareableHandle);    
     // allocate like
     void create_like(const Mat& m, VkAllocator* allocator);
+    // interop
+    void create_like(VkAllocator* _allocator, void *shareableHandle);    
     // allocate like
     void create_like(const VkMat& m, VkAllocator* allocator);
     // allocate like

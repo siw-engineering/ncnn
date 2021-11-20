@@ -388,6 +388,35 @@ VkBuffer VkAllocator::create_buffer(size_t size, VkBufferUsageFlags usage)
     return buffer;
 }
 
+// interop
+VkBuffer VkAllocator::create_buffer_ext(size_t size, VkBufferUsageFlags usage)
+{
+
+    VkExternalMemoryBufferCreateInfo extbufInfo = {};
+    extbufInfo.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO;
+    extbufInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+
+    VkBufferCreateInfo bufferCreateInfo;
+    bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferCreateInfo.pNext = &extbufInfo;
+    bufferCreateInfo.flags = 0;
+    bufferCreateInfo.size = size;
+    bufferCreateInfo.usage = usage;
+    bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    bufferCreateInfo.queueFamilyIndexCount = 0;
+    bufferCreateInfo.pQueueFamilyIndices = 0;
+
+    VkBuffer buffer = 0;
+    VkResult ret = vkCreateBuffer(vkdev->vkdevice(), &bufferCreateInfo, 0, &buffer);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateBuffer failed %d", ret);
+        return 0;
+    }
+
+    return buffer;
+}
+
 VkDeviceMemory VkAllocator::allocate_memory(size_t size, uint32_t memory_type_index)
 {
     VkMemoryAllocateInfo memoryAllocateInfo;
@@ -398,6 +427,34 @@ VkDeviceMemory VkAllocator::allocate_memory(size_t size, uint32_t memory_type_in
 
     VkDeviceMemory memory = 0;
     VkResult ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, 0, &memory);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkAllocateMemory failed %d", ret);
+        return 0;
+    }
+
+    return memory;
+}
+
+// interop
+VkDeviceMemory VkAllocator::allocate_memory_ext(size_t size, void *handle, uint32_t memory_type_index)
+{
+
+    VkImportMemoryFdInfoKHR handleInfo = {};
+    handleInfo.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR;
+    handleInfo.pNext = NULL;
+    handleInfo.fd = (int)(uintptr_t)handle;
+    handleInfo.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+
+    VkMemoryAllocateInfo memAllocation = {};
+    memAllocation.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    memAllocation.pNext = (void *)&handleInfo;
+    memAllocation.allocationSize = size;
+    memAllocation.memoryTypeIndex = memory_type_index;
+    // std::cout << "  (void *)&handle : " << (int)(uintptr_t)handle << std::endl;
+    // std::cout << " size : " << size << "   memory_type_index : " << memory_type_index << std::endl;
+    VkDeviceMemory memory = 0;
+    VkResult ret = vkAllocateMemory(vkdev->vkdevice(), &memAllocation, 0, &memory);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkAllocateMemory failed %d", ret);
@@ -1667,6 +1724,70 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
     return ptr;
 }
 
+// interop
+VkBufferMemory* VkStagingAllocator::fastMallocShare(size_t size, void *shareableHandle)
+{
+    // std::cout << "size : " << size << std::endl;
+    // m_vkWaitSemaphore = VK_NULL_HANDLE;
+    // m_vkSignalSemaphore = VK_NULL_HANDLE;
+
+        // std::cout << " fastMalloc 1627 " << std::endl;
+    // find free budget
+    std::list<VkBufferMemory*>::iterator it = d->buffer_budgets.begin();
+    for (; it != d->buffer_budgets.end(); it++)
+    {
+        VkBufferMemory* ptr = *it;
+        // std::cout << " count " << std::endl;
+        size_t capacity = ptr->capacity;
+
+        // size_compare_ratio ~ 100%
+        if (capacity >= size && ((capacity * d->size_compare_ratio) >> 8) <= size)
+        {
+            d->buffer_budgets.erase(it);
+
+                        NCNN_LOGE("VkStagingAllocator M %p %lu reused %lu", ptr->buffer, size, capacity);
+
+            return ptr;
+        }
+    }
+    // std::cout << " staging allocation " << std::endl;
+    VkBufferMemory* ptr = new VkBufferMemory;
+                                        // VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+    ptr->buffer = create_buffer_ext(size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+    ptr->offset = 0;
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetBufferMemoryRequirements(vkdev->vkdevice(), ptr->buffer, &memoryRequirements);
+
+    // setup memory type
+    if (buffer_memory_type_index == (uint32_t)-1)
+    {
+        buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    }
+
+    // if (vkAllocateMemory(vkdev->vkdevice(), &memAllocation, nullptr, &cpyBufferMemory) != VK_SUCCESS) {
+    //     throw std::runtime_error("Failed to import allocation!");
+    // }
+
+    ptr->memory = allocate_memory_ext(memoryRequirements.size, shareableHandle, buffer_memory_type_index);
+    // std::cout << " memory allocated  " << std::endl;
+    // ignore memoryRequirements.alignment as we always bind at zero offset
+    vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
+    // createExternalSemaphore(m_vkSignalSemaphore, VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT);
+    // createExternalSemaphore(m_vkWaitSemaphore, VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT);    
+    // std::cout << " memory binded  " << std::endl;
+    ptr->capacity = size;
+
+    // vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, size, 0, &ptr->mapped_ptr);
+    ptr->access_flags = 0;
+    ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
+        NCNN_LOGE("VkStagingAllocator M %p %lu", ptr->buffer, size);
+
+    return ptr;
+}
+
+
 void VkStagingAllocator::fastFree(VkBufferMemory* ptr)
 {
     //     NCNN_LOGE("VkStagingAllocator F %p", ptr->buffer);
@@ -1775,6 +1896,46 @@ VkBufferMemory* VkWeightStagingAllocator::fastMalloc(size_t size)
 
     return ptr;
 }
+
+// interop
+VkBufferMemory* VkWeightStagingAllocator::fastMallocShare(size_t size, void *shareableHandle)
+{
+    // std::cout << " staging allocation " << std::endl;
+    VkBufferMemory* ptr = new VkBufferMemory;
+                                        // VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+    ptr->buffer = create_buffer_ext(size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+    ptr->offset = 0;
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetBufferMemoryRequirements(vkdev->vkdevice(), ptr->buffer, &memoryRequirements);
+
+    // setup memory type
+    if (buffer_memory_type_index == (uint32_t)-1)
+    {
+        buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    }
+
+    // if (vkAllocateMemory(vkdev->vkdevice(), &memAllocation, nullptr, &cpyBufferMemory) != VK_SUCCESS) {
+    //     throw std::runtime_error("Failed to import allocation!");
+    // }
+
+    ptr->memory = allocate_memory_ext(memoryRequirements.size, shareableHandle, buffer_memory_type_index);
+
+    // ignore memoryRequirements.alignment as we always bind at zero offset
+    vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
+
+    ptr->capacity = size;
+
+    vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, size, 0, &ptr->mapped_ptr);
+
+    ptr->access_flags = 0;
+    ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
+    //     NCNN_LOGE("VkStagingAllocator M %p %lu", ptr->buffer, size);
+
+    return ptr;
+}
+
 
 void VkWeightStagingAllocator::fastFree(VkBufferMemory* ptr)
 {
