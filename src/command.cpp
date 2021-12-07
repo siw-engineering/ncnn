@@ -438,10 +438,10 @@ void VkCompute::record_upload(const int shareableHandle, VkMat& dst, const Optio
     // upload
     VkMat dst_staging;
     dst_staging.create_like(opt.staging_vkallocator, (void *)(uintptr_t)shareableHandle);
-    // if (dst_staging.empty())
-    // {
-    //     // return;
-    // }
+    if (dst_staging.empty())
+    {
+        return;
+    }
 
     // stash staging
     d->upload_staging_buffers.push_back(dst_staging);

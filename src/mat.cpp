@@ -575,7 +575,6 @@ void VkMat::create(int _w, int _h, int _c, VkAllocator* _allocator, void *sharea
     if (dims == 3 && w == _w && h == _h && c == _c && allocator == _allocator)
         return;
     release();
-    // std::cout << " create shareableHandle " << std::endl;
     elemsize = 4;
     elempack = 1;
     allocator = _allocator;
@@ -584,20 +583,16 @@ void VkMat::create(int _w, int _h, int _c, VkAllocator* _allocator, void *sharea
     w = _w;
     h = _h;
     c = _c;
-    // size_t totalsize = 550*550*3*4;
-    // std::cout << " w : " << w << "  , h : " << h << " , c : " << c << std::endl;
+
 
     cstep = alignSize(w * h * elemsize, 16) / elemsize;
-    // std::cout << " total : " << total() << std::endl;
     if (total() > 0)
     {
         size_t totalsize = alignSize(total() * elemsize, 4);
-        // std::cout << " total size : " << totalsize << std::endl;
         data = allocator->fastMallocShare(totalsize, shareableHandle);
 
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
-        // std::cout << " refcount : " << *refcount << std::endl;
     }
 }
 

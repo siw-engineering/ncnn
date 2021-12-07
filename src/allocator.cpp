@@ -451,8 +451,6 @@ VkDeviceMemory VkAllocator::allocate_memory_ext(size_t size, void *handle, uint3
     memAllocation.pNext = (void *)&handleInfo;
     memAllocation.allocationSize = size;
     memAllocation.memoryTypeIndex = memory_type_index;
-    // std::cout << "  (void *)&handle : " << (int)(uintptr_t)handle << std::endl;
-    // std::cout << " size : " << size << "   memory_type_index : " << memory_type_index << std::endl;
     VkDeviceMemory memory = 0;
     VkResult ret = vkAllocateMemory(vkdev->vkdevice(), &memAllocation, 0, &memory);
     if (ret != VK_SUCCESS)
@@ -1727,12 +1725,12 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
 // interop
 VkBufferMemory* VkStagingAllocator::fastMallocShare(size_t size, void *shareableHandle)
 {
-    // std::cout << "size : " << size << std::endl;
     // m_vkWaitSemaphore = VK_NULL_HANDLE;
     // m_vkSignalSemaphore = VK_NULL_HANDLE;
 
         // std::cout << " fastMalloc 1627 " << std::endl;
     // find free budget
+    /*
     std::list<VkBufferMemory*>::iterator it = d->buffer_budgets.begin();
     for (; it != d->buffer_budgets.end(); it++)
     {
@@ -1750,7 +1748,8 @@ VkBufferMemory* VkStagingAllocator::fastMallocShare(size_t size, void *shareable
             return ptr;
         }
     }
-    // std::cout << " staging allocation " << std::endl;
+
+    */
     VkBufferMemory* ptr = new VkBufferMemory;
                                         // VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT
     ptr->buffer = create_buffer_ext(size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
@@ -1775,10 +1774,9 @@ VkBufferMemory* VkStagingAllocator::fastMallocShare(size_t size, void *shareable
     vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
     // createExternalSemaphore(m_vkSignalSemaphore, VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT);
     // createExternalSemaphore(m_vkWaitSemaphore, VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT);    
-    // std::cout << " memory binded  " << std::endl;
     ptr->capacity = size;
 
-    // vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, size, 0, &ptr->mapped_ptr);
+    vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, size, 0, &ptr->mapped_ptr);
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
@@ -1900,7 +1898,6 @@ VkBufferMemory* VkWeightStagingAllocator::fastMalloc(size_t size)
 // interop
 VkBufferMemory* VkWeightStagingAllocator::fastMallocShare(size_t size, void *shareableHandle)
 {
-    // std::cout << " staging allocation " << std::endl;
     VkBufferMemory* ptr = new VkBufferMemory;
                                         // VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT
     ptr->buffer = create_buffer_ext(size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
