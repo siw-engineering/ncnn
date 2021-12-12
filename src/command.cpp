@@ -471,6 +471,7 @@ void VkCompute::record_upload(const int shareableHandle, VkMat& dst, const Optio
 
     // gpu cast to fp16 on the fly (integrated gpu)
     vkdev->convert_packing(dst_staging, dst, dst_elempack, *this, opt);
+    dst_staging.allocator->clear();
 }
 
 void VkCompute::record_upload(const Mat& src, VkImageMat& dst, const Option& opt)

@@ -1780,7 +1780,7 @@ VkBufferMemory* VkStagingAllocator::fastMallocShare(size_t size, void *shareable
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
-        NCNN_LOGE("VkStagingAllocator M %p %lu", ptr->buffer, size);
+        // NCNN_LOGE("VkStagingAllocator M %p %lu", ptr->buffer, size);
 
     return ptr;
 }
